@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+
+
+<div class="allstar-form">
+
+{% with messages = get_flashed_messages() %}
+			  {% if messages %}
+				<div class="error-messages centered">
+				    {% for message in messages %}
+				      {{ message }}
+				    {% endfor %}
+				</div>
+			  {% endif %}
+			{% endwith %}
+
+	<h3>Induction</h3>
+
+		{% if form.errors %}
+					<div class="error-messages">
+						Your submission had errors. Please fix these errors and resubmit.
+					</div>
+				{% endif %}
+
+	<form action="" method="post" name="induction">
+		{{ form.hidden_tag() }}
+
+		<p><label>Invoice Number</label><br>
+			{% if form.errors.invoice_num %}
+				{{ form.invoice_num(class="error_field text_input") }}
+				<ul class="errors">{% for error in form.invoice_num.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+			{% else %}
+				{{ form.invoice_num(class="text_input") }}
+			{% endif %}
+		</p>
+		<p><label>Employee Code</label><br>
+			{% if form.errors.induction_employee_code %}
+				{{ form.induction_employee_code(class="text_input error_field") }}
+				<ul class="errors">{% for error in form.induction_employee_code.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+			{% else %}
+				{{ form.induction_employee_code(class="text_input") }}
+			{% endif %}
+		</p>
+		<p><label>Side</label><br>
+			{{ form.side }}
+		</p>
+		<p><label>Type of Light</label><br>
+			{{ form.light_type }}
+		</p>
+		{% if form.light_type.data == 'LED' or form.light_type.data == 'HID' %}
+			<p id="lt_comments">
+				{% if form.errors.light_type_comments %}
+					{{ form.light_type_comments(class="error_field text_input", placeholder="Please add additional comments.") }}
+					<ul class="errors">{% for error in form.invoice_num.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+				{% else %}
+					{{ form.light_type_comments(class="text_input", placeholder="Please add additional comments.") }}
+				{% endif %}
+			</p>
+		{% else %}
+			<p id="lt_comments" style="display:none;">
+				{{ form.light_type_comments(class="text_input", style="display:none;", placeholder="Please add additional comments.") }}
+			</p>
+		{% endif %}
+		<p><label>Will this light be used to fulfill this invoice?</label>
+			{{ form.correct_to_invoice }}
+		</p>
+		{% if form.correct_to_invoice.data == 'y' %}
+			<p id="noted">
+				<label>Was this light noted correctly?</label>
+				{{ form.light_noted }}
+			</p>
+		{% else %}
+			<p id="noted" style="display:none;">
+				<label>Was this light noted correctly?</label>
+				{{ form.light_noted(style="display:none;") }}
+			</p>
+		{% endif %}
+		{% if form.correct_to_invoice.data == 'n' %}
+			<p id="replacement">
+				<label>Do we have a replacement available?</label>
+				{{ form.replacement_available }}
+				{{ form.replacement_comments(class="text_input",placeholder="Comments") }}
+			</p>
+		{% else %}
+			<p id="replacement" style="display:none;">
+				<label>Do we have a replacement available?</label>
+				{{ form.replacement_available(style="display:none;") }}
+				{{ form.replacement_comments(class="text_input",placeholder="Comments", style="display:none;") }}
+			</p>
+		{% endif %}
+
+		<p style="text-align:center;"><input type="submit" value="Submit"/></p>
+
+	</form>
+	
+</div>
+
+
+
+<script>
+$(document).ready(function() {
+	$('form').submit(function(){
+	    $('input[type=submit]', this).attr('disabled', 'disabled');
+	});
+	$( "#correct_to_invoice" ).change(function() {
+		if ($( "input[name=correct_to_invoice]:checked" ).val() == 'n' ) {
+			$( "#replacement").show();
+			$( "#replacement_available").show();
+			$( "#replacement_comments").show();
+			$( "#noted").hide();
+			$( "#light_noted").hide();				
+		} else {
+			$( "#replacement").hide();
+			$( "#replacement_available").hide();
+			$( "#replacement_comments").hide();
+			$( "#noted").show();
+			$( "#light_noted").show();				
+		}
+	});
+	$( "#light_type" ).change(function() {
+		if (($( "input[name=light_type]:checked" ).val() == 'HID' ) || ($( "input[name=light_type]:checked" ).val() == 'LED' ) ) {
+			$( "#lt_comments").show();
+			$( "#light_type_comments").show();
+		} else {
+			$( "#lt_comments").hide();
+			$( "#light_type_comments").hide();
+		}
+	});
+});
+</script>
+
+{% endblock %}

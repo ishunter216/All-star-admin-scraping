@@ -1,0 +1,38 @@
+{% block head %}
+<link href="/static/lightbox.css" rel="stylesheet">
+{% endblock %}
+
+<style>
+	#image-container{
+		min-height:200px;
+	}
+	#image-container .image-div{
+		height:250px;
+		width:250px;
+		margin:10px;
+		float:left;
+	}
+	#image-container .image-div img{
+		width:250px;
+	}
+	#image-container .image-div p{
+		color:red;
+		text-align:center;
+		font-size:18px;
+		margin:10px;
+		cursor:pointer;
+	}
+</style>
+
+<input type="hidden" id="images-input" name="images" value="{{'|'.join(ids)}}">
+
+<div id="image-container">
+	{%- for image in images %}
+		<div class="image-div">
+			<a href="{{image.url}}" data-lightbox="image-set">
+				<img class="s3-image" src="{{image.url}}" alt="">
+			</a>
+			<p class="delete-button" image_id="{{image.id}}">Delete Photo</p>
+		</div>
+	{% endfor %}
+</div>

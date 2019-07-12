@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="allstar-form">
+
+
+{% with messages = get_flashed_messages() %}
+			  {% if messages %}
+				<div class="error-messages centered">
+				    {% for message in messages %}
+				      {{ message }}
+				    {% endfor %}
+				</div>
+			  {% endif %}
+			{% endwith %}
+
+	<h3>Approval</h3>
+
+		{% if form.errors %}
+					<div class="error-messages">
+						Your submission had errors. Please fix these errors and resubmit.
+                        {% for field in form.errors %}
+                            {% for error in form.errors[field] %}
+                                <p><strong>Error:</strong> {{error}}</p>
+                            {% endfor %}
+                        {% endfor %}
+
+					</div>
+		{% endif %}
+
+	<form id="approval-form" action="" method="post" name="approval">
+		{{ form.hidden_tag() }}
+
+		<p><label>Approval Type</label><br>
+			{{ form.approval_type }}
+		</p>
+        <p><label>Type of Light</label><br>
+            {{ form.light_type }}
+        </p>
+        <p id="testedbare">
+            {{ form.tested_bare(style="display:none;") }}
+        </p>
+        <p>
+                {{ form.have_repair }} <label>Have Repair?</label> 
+                {{ form.light_noted }} <label>Noted Incorrectly?</label> 
+                {{ form.swap_out }} <label>Swap Out?</label> 
+                {{ form.bake_wash }} <label>Bake/Wash?</label> 
+            </p>
+
+            <p>
+                {{ form.repair_comments(class="text_input",placeholder="Repair Comments", style="display:none;") }}
+            </p>
+		<p><label>Invoice Number</label><br>
+			{% if form.errors.invoice_num %}
+				{{ form.invoice_num(class="error_field text_input") }}
+				<ul class="errors">{% for error in form.invoice_num.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+			{% else %}
+				{{ form.invoice_num(class="text_input") }}
+			{% endif %}
+		</p>
+        <p><label>Interchange</label><br>
+            {% if form.errors.interchange %}
+                {{ form.interchange(class="text_input error_field") }}
+                <ul class="errors">{% for error in form.interchange.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% else %}
+                {{ form.interchange(class="text_input") }}
+            {% endif %}
+        </p>
+        <p><label>Tracking Number</label><br>
+			{% if form.errors.tracking_number %}
+				{{ form.tracking_number(class="error_field text_input") }}
+				<ul class="errors">{% for error in form.tracking_number.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+			{% else %}
+				{{ form.tracking_number(class="text_input") }}
+			{% endif %}
+		</p>
+
+		<p><label>Employee Code</label><br>
+			{% if form.errors.approval_employee_code %}
+				{{ form.approval_employee_code(class="text_input error_field") }}
+				<ul class="errors">{% for error in form.approval_employee_code.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+			{% else %}
+				{{ form.approval_employee_code(class="text_input") }}
+			{% endif %}
+		</p>
+			
+		<p>
+			<label>Do you final approve this light?</label>
+			{{ form.light_approved }}
+			{% if form.light_approved.data in ['No','Other'] %}
+				{{ form.approval_comments(class="text_input",placeholder="Comments") }}
+			{% else %}
+				{{ form.approval_comments(class="text_input",placeholder="Comments", style="display:none;") }}
+			{% endif %}
+		</p>
+		<p>
+			<label>Notes</label><br>
+			{{ form.notes(rows='3',style='width:100%;margin-top:8px;') }}
+		</p>
+	</form>
+
+</div>
+<div id="video-container">
+	<h3 id="webcam-title">Add Photos</h3>
+		<video id="video" autoplay playsinline></video>
+	<select id="videoSource"></select>
+	<div id="take-photo-button" onclick="takeSnapshot();" class="hidden">TAKE PHOTO <div class="overlay"></div></div>
+	<canvas  id="myCanvas" style="display:none;"></canvas>
+
+
+	<div id="approval-form-submit">SAVE ORDER</div>
+
+    <div id="snapshot-container">
+    </div>
+</div>
+<style>
+#approval-form input[type="radio"], #approval-form input[type="checkbox"] {
+  transform: scale(1.75);
+ }
+</style>
+
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blob-util/2.0.1/blob-util.min.js"></script>
+
+    <script>
+        $(function() {
+            var formData = new FormData();
+            var video = document.querySelector('video');
+            var videoSelect = document.querySelector('select#videoSource');
+            var initialized = false;
+            var video_height, snapshot_height;
+
+            //var video_width = 1280;
+            var video_width = 640;
+            var container_width = 800;
+            var snapshot_margin = 10;
+            var snapshot_width = (container_width - snapshot_margin*6)/3;
+            //var snapshot_width = 1280;
+
+            function fillSelectWithDevices(deviceInfos) {
+                var value = videoSelect.value;
+                $(videoSelect).empty();
+
+                for (let i = 0; i !== deviceInfos.length; ++i) {
+                    var deviceInfo = deviceInfos[i];
+                    if (deviceInfo.kind === 'videoinput') {
+                        var option = document.createElement('option');
+                        option.value = deviceInfo.deviceId;
+                        option.text = deviceInfo.label || `camera ${videoSelect.length + 1}`;
+                        videoSelect.appendChild(option);
+                        if(!initialized && deviceInfo.label==='Back Camera'){
+                            value = deviceInfo.deviceId;
+                            initialized = true;
+                        }
+                    }
+                    if (Array.prototype.slice.call(videoSelect.childNodes).some(n => n.value === value)) {
+                        videoSelect.value = value;
+                    }
+                }
+            }
+
+            function getBase64Image(imgElem) {
+                return imgElem.replace(/^data:image\/(png|jpg);base64,/, "");
+            }
+
+            function gotStream(stream) {
+                window.stream = stream; // make stream available to console
+                video.srcObject = stream;
+
+                video.onloadedmetadata = function() {
+                    video_width = this.videoWidth;
+                    video_height = this.videoHeight;
+                }
+
+                video.addEventListener('canplay', function(ev){
+
+                    video_height = video.videoHeight * (video_width/video.videoWidth);
+                    snapshot_height = video.videoHeight * (snapshot_width/video.videoWidth);
+
+                    initCanvas();
+
+                    // Firefox currently has a bug where the height can't be read from
+                    // the video, so we will make assumptions if this happens.
+
+                    if (isNaN(video_height)) {
+                        video_height = video_width * (3/4);
+                        console.log("Can't read video height. Assuming 4:3 aspect ratio");
+                    }
+
+                    //video_width=640;
+                    //video_height=480;
+
+                    video.setAttribute('width', video_width);
+                    video.setAttribute('height', video_height);
+                    canvas.setAttribute('width', video_width);
+                    canvas.setAttribute('height', video_height);
+
+                    $('#take-photo-button').removeClass('hidden');
+
+                }, false);
+
+
+                return navigator.mediaDevices.enumerateDevices();
+            }
+
+            function handleError(error) {
+                console.log('navigator.getUserMedia error: ', error);
+            }
+
+            function start() {
+                if (window.stream) {
+                    window.stream.getTracks().forEach(track => {
+                        track.stop();
+                    });
+                }
+
+                var videoSource = videoSelect.value;
+                var constraints = {
+                    video: {deviceId: videoSource ? {exact: videoSource} : undefined,
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+                navigator.mediaDevices.getUserMedia(constraints).then(gotStream).then(fillSelectWithDevices).catch(handleError);
+            }
+
+            videoSelect.onchange = start;
+            start();
+
+            var canvas, ctx, container;
+
+            function initCanvas() {
+                canvas = document.getElementById("myCanvas");
+                ctx = canvas.getContext('2d');
+                container = document.getElementById("snapshot-container");
+            }
+
+            // Capture a photo by fetching the current contents of the video
+            // and drawing it into a canvas, then converting that to a PNG
+            // format data URL. By drawing it on an offscreen canvas and then
+            // drawing that to the screen, we can change its size and/or apply
+            // other changes before drawing it.
+            takeSnapshot = function() {
+                if (ctx){
+                    video_width = video.videoWidth;
+                    video_height = video.videoHeight;
+
+                    ctx.canvas.width  = video_width;
+                    ctx.canvas.height = video_height;
+
+                    ctx.drawImage(video, 0, 0, video_width, video_height);
+                    var data = canvas.toDataURL('image/png');
+
+                    blobUtil.canvasToBlob(canvas, 'image/png').then(function (blob) {
+                        formData.append('files[]', blob)
+                    }).catch(function (err) {
+                        console.log(err);
+                    });
+
+                    displaySnapshot(data);
+                }
+            };
+
+            function displaySnapshot(data){
+                var photo = document.createElement('img'),
+                    snapshot_div = document.createElement('div'),
+                    delete_text = document.createElement('p');
+
+                photo.setAttribute('src', data);
+
+                $(photo).css({"width":snapshot_width+"px"});
+                $(photo).addClass("snapshot-img");
+                $(snapshot_div).css({"width":snapshot_width+"px; padding-bottom: 25px"});
+                $(delete_text).text("Delete Photo");
+                $(snapshot_div).append(photo).append(delete_text);
+                $(delete_text).on('click',function(){$(this).closest('div').remove()})
+                container.append(snapshot_div);
+            }
+            $('#approval-form-submit').on('click',function(e){
+                $.notify("Uploading...", {
+                    autoHide: false
+                });
+
+                $('.errors-w').remove();
+                $('.error_field').removeClass('error_field');
+
+                var form2 = $('#approval-form').serializeArray();
+                for (i = 0; i < form2.length; i++) {
+                    formData.set(form2[i].name, form2[i].value);
+                }
+
+                $.ajax({
+                    url: '',
+                    data: formData,
+                    type: "POST", //ADDED THIS LINE
+                    // THIS MUST BE DONE FOR FILE UPLOADING
+                    contentType: false,
+                    processData: false,
+                    success: function (data) {
+                        $('.notifyjs-corner').empty();
+
+                        try {
+                            messages = JSON.parse(data);
+                            $.notify("Your submission had errors. Please fix these errors and resubmit.", "error");
+
+                            for (var k in messages) {
+                                if (messages.hasOwnProperty(k)) {
+                                    $.notify("Error: "+k, "error");
+                                    var $selector = $('#' + k).addClass('error_field').closest('p');
+                                    var $cListW = $('<p class="errors-w" />');
+                                    var $cList = $('<ul class="errors" />');
+                                    if (!$selector.length) {
+                                        $selector = $('#' + k).addClass('error_field').closest('ul');
+                                        var $cListW = $('<li class="errors-w" />');
+                                        var $cList = $('<span class="errors" />');
+                                    }
+
+                                    $.each(messages[k], function (i, txt) {
+                                        var li = $('<li/>')
+                                            .text(txt)
+                                            .appendTo($cList);
+                                    });
+
+                                    $cListW.append($cList);
+
+                                    $selector.append($cListW);
+                                }
+                            }
+
+                        } catch (e) {
+                            location.href = '/approval';
+                        }
+                    },
+                    error: function (data) {
+                        $('.notifyjs-corner').empty();
+                        $.notify('Error ! Please try upload data again or later', 'error');
+                    }
+                });
+            });
+/*
+            $( "#approval_type" ).change(function() {
+                if ($( "input[name=approval_type]:checked" ).val() == 'New' ) {
+                    $( "#have_repair").hide();
+                    //$( "#stickered_engraved").hide();
+                    $( "#repair_comments").hide();
+                    $( "#repair").hide();
+                    //$( "#sticker").hide();
+                } else {
+                    $( "#have_repair").show();
+                    //$( "#stickered_engraved").show();
+                    $( "#repair").show();
+                    //$( "#sticker").show();
+                    if ($( "input[name=have_repair]:checked" ).val() == 'y' ) {
+                        $( "#repair_comments").show();
+                    }
+                }
+            });*/
+
+            $( "#light_type" ).change(function() {
+                if($( "input[name=light_type]:checked" ).val() == 'HID') {
+                    $( "#tested_bare").show();
+                }
+                if($( "input[name=light_type]:checked" ).val() == 'LED') {
+                    $( "#tested_bare").show();
+                }
+                if($( "input[name=light_type]:checked" ).val() == 'Halogen') {
+                    $( "#tested_bare").hide();
+
+                }
+            });
+
+            $( "#have_repair" ).change(function() {
+                if (document.getElementById('have_repair').checked) {
+                    $( "#repair_comments").show();
+                } else {
+                    $( "#repair_comments").hide();
+                }
+            });
+            $( "#light_approved" ).change(function() {
+                if ($( "input[name=light_approved]:checked" ).val() == 'Yes' ) {
+                    $( "#approval_comments").hide();
+                } else {
+                    $( "#approval_comments").show();
+                }
+            });
+        });
+
+
+
+    </script>
+
+
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'admin/master.html' %}
+{% block body %}
+
+	{% if current_user.is_authenticated %}
+
+		Welcome.
+
+	{% else %}
+
+		Please login to use this system. <a href="/login">Click here to login</a>. 
+
+	{% endif %}
+
+{% endblock %}

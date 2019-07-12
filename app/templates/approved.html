@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+	
+
+<div class="allstar-form">
+
+	<h3>Approval Complete</h3>
+
+			{% with messages = get_flashed_messages() %}
+			  {% if messages %}
+				<div class="error-messages centered">
+				    {% for message in messages %}
+				      {{ message }}
+				    {% endfor %}
+				</div>
+			  {% endif %}
+			{% endwith %}
+
+		<p>Need to submit another? <a href="/approval">Click here</a>.</p>
+
+
+</div>
+
+{% endblock %}
